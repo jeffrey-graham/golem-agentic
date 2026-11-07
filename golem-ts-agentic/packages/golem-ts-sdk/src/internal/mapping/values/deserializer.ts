@@ -25,58 +25,25 @@ import { Result } from '../../../host/result';
  * @param analysedType
  */
 export function deserialize(value: Value, analysedType: AnalysedType): any {
-  if (
-    value.kind === 'record' &&
-    value.value.length === 0 &&
-    analysedType.kind === 'tuple' &&
-    analysedType.emptyType === 'null'
-  ) {
-    return null;
-  }
-
-  if (
-    value.kind === 'record' &&
-    value.value.length === 0 &&
-    analysedType.kind === 'tuple' &&
-    analysedType.emptyType === 'undefined'
-  ) {
-    return undefined;
-  }
-
-  if (
-    value.kind === 'record' &&
-    value.value.length === 0 &&
-    analysedType.kind === 'tuple' &&
-    analysedType.emptyType === 'void'
-  ) {
-    return undefined;
-  }
-
-  if (value.kind === 'option') {
-    const caseValue = value.value;
-    if (!caseValue) {
-      if (analysedType.kind === 'option') {
-        if (analysedType.emptyType === 'null') {
-          return null;
-        }
-
-        return undefined;
-      }
-
-      return undefined;
-    }
-
-    const innerType =
-      analysedType.kind === 'option' ? analysedType.value.inner : analysedType;
-
-    return deserialize(caseValue, innerType);
-  }
-
-  if (value.kind === 'enum' && analysedType.kind === 'enum') {
-    return analysedType.value.cases[value.value];
+  if (value.kind === 'option' && analysedType.kind !== 'option') {
+    return value.value ? deserialize(value.value, analysedType) : undefined;
   }
 
   switch (analysedType.kind) {
+    case 'option':
+      if (value.kind === 'option') {
+        if (!value.value) {
+          return analysedType.emptyType === 'null' ? null : undefined;
+        }
+        return deserialize(value.value, analysedType.value.inner);
+      }
+      return deserialize(value, analysedType.value.inner);
+
+    case 'enum':
+      if (value.kind === 'enum') {
+        return analysedType.value.cases[value.value];
+      }
+      throw new Error(typeMismatchInDeserialize(value, 'enum'));
     case 'bool':
       if (value.kind === 'bool') {
         return value.value;
@@ -249,6 +216,15 @@ export function deserialize(value: Value, analysedType: AnalysedType): any {
       }
 
     case 'tuple':
+      if (value.kind === 'record' && value.value.length === 0) {
+        if (analysedType.emptyType === 'null') return null;
+        if (
+          analysedType.emptyType === 'undefined' ||
+          analysedType.emptyType === 'void'
+        ) {
+          return undefined;
+        }
+      }
       if (value.kind === 'tuple') {
         const emptyType = analysedType.emptyType;
         if (emptyType) {
