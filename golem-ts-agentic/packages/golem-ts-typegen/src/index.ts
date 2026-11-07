@@ -426,14 +426,33 @@ function getAliasTypeArgumentsSafe(
   ];
 }
 
+export function getFullyQualifiedTypeName(type: TsMorphType): string {
+  const text = type.getText(
+    undefined,
+    ts.TypeFormatFlags.UseFullyQualifiedType | ts.TypeFormatFlags.NoTruncation,
+  );
+  if (text && text !== "__type") {
+    return text;
+  }
+  return (
+    type.getAliasSymbol()?.getFullyQualifiedName() ??
+    type.getSymbol()?.getFullyQualifiedName() ??
+    type.getText()
+  );
+}
+
 export function getRawTypeName(type: TsMorphType): string | undefined {
+  const text = type.getText(
+    undefined,
+    ts.TypeFormatFlags.UseFullyQualifiedType | ts.TypeFormatFlags.NoTruncation,
+  );
   const rawName = type.getSymbol()?.getName();
 
   if (!rawName || rawName === "__type") {
     const alias = type.getAliasSymbol()?.getName();
 
     if (!alias || alias === "__type") {
-      return type.getText();
+      return text || type.getText();
     }
 
     return alias;
