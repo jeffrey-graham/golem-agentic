@@ -47,10 +47,25 @@ export const fromTsValueBinaryReference = (tsValue: any): WitValue => {
   return Value.toWitValue(value);
 };
 
+export const toTsValueEither = (
+  witValue: WitValue,
+  expectedType: AnalysedType,
+): Either.Either<any, string> => {
+  try {
+    const value: Value.Value = Value.fromWitValue(witValue);
+    return Either.right(deserialize(value, expectedType));
+  } catch (err) {
+    return Either.left(err instanceof Error ? err.message : String(err));
+  }
+};
+
 export const toTsValue = (
   witValue: WitValue,
   expectedType: AnalysedType,
 ): any => {
-  const value: Value.Value = Value.fromWitValue(witValue);
-  return deserialize(value, expectedType);
+  const result = toTsValueEither(witValue, expectedType);
+  if (Either.isLeft(result)) {
+    throw new Error(result.val);
+  }
+  return result.val;
 };
